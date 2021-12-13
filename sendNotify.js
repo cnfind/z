@@ -99,6 +99,9 @@ let WP_UIDS = "";
 let WP_URL = "";
 
 let WP_APP_TOKEN_ONE = "";
+if (process.env.WP_APP_TOKEN_ONE) {
+    WP_APP_TOKEN_ONE = process.env.WP_APP_TOKEN_ONE;
+}
 let WP_UIDS_ONE = "";
 
 // =======================================gotify通知设置区域==============================================
@@ -295,6 +298,35 @@ async function sendNotify(text, desp, params = {}, author = '\n') {
             }
         }
 
+        if (strTitle == "汪汪乐园养joy领取" && WP_APP_TOKEN_ONE) {
+            console.log(`捕获汪汪乐园养joy领取通知，开始尝试一对一推送...`);
+            const TempList = text.split('- ');
+            if (TempList.length == 3) {
+                var strNickName = TempList[TempList.length - 1];
+                var strPtPin = "";
+                console.log(`捕获别名:` + strNickName);
+                if (TempCK) {
+                    for (let j = 0; j < TempCK.length; j++) {
+                        if (TempCK[j].nickName == strNickName) {
+                            strPtPin = TempCK[j].pt_pin;
+                            break;
+                        }
+                        if (TempCK[j].pt_pin == strNickName) {
+                            strPtPin = TempCK[j].pt_pin;
+                            break;
+                        }
+                    }
+                    if (strPtPin) {
+                        console.log(`别名反查PtPin成功:` + strPtPin);
+                        await sendNotifybyWxPucher("汪汪乐园领取通知", `【京东账号】${strPtPin}\n当前等级: 30\n已自动领取最高等级奖励\n请前往京东极速版APP查看使用优惠券\n活动入口：京东极速版APP->我的->优惠券->京券`, strPtPin);
+                    } else {
+                        console.log(`别名反查PtPin失败: 1.用户更改了别名 2.可能是新用户，别名缓存还没有。`);
+                    }
+                }
+            } else {
+                console.log(`尝试一对一推送失败，无法捕获别名...`);
+            }
+        }
         //检查脚本名称是否需要通知到Group2,Group2读取原环境配置的变量名后加2的值.例如: QYWX_AM2
         const notifyGroup2List = process.env.NOTIFY_GROUP2_LIST ? process.env.NOTIFY_GROUP2_LIST.split('&') : [];
         const titleIndex2 = notifyGroup2List.findIndex((item) => item === strTitle);
@@ -1139,8 +1171,8 @@ async function sendNotify(text, desp, params = {}, author = '\n') {
                             }
                         }
 
-                        $.nickName = $.nickName || $.UserName;						
-						
+                        $.nickName = $.nickName || $.UserName;
+
                         //这是为了处理ninjia的remark格式
                         $.Remark = $.Remark.replace("remark=", "");
                         $.Remark = $.Remark.replace(";", "");
@@ -1151,32 +1183,30 @@ async function sendNotify(text, desp, params = {}, author = '\n') {
                         if (ShowRemarkType == "3") {
                             $.Remark = $.UserName + "(" + $.Remark + ")";
                         }
-						
-                        try {   
-							//额外处理1，nickName包含星号
-							$.nickName=$.nickName.replace(new RegExp(`[*]`, 'gm'), "[*]");		
-							
+
+                        try {
+                            //额外处理1，nickName包含星号
+                            $.nickName = $.nickName.replace(new RegExp(`[*]`, 'gm'), "[*]");
+
                             text = text.replace(new RegExp(`${$.UserName}|${$.nickName}`, 'gm'), $.Remark);
                             desp = desp.replace(new RegExp(`${$.UserName}|${$.nickName}`, 'gm'), $.Remark);
-							
-							//额外处理2，nickName不包含星号，但是确实是手机号
-							var tempname=$.UserName;
-							if(tempname.length==13 && tempname.substring(8)){								
-								tempname=tempname.substring(0,3)+"[*][*][*][*][*]"+  tempname.substring(8);
-								//console.log("额外处理2:"+tempname);
-								text = text.replace(new RegExp(tempname, 'gm'), $.Remark);
-								desp = desp.replace(new RegExp(tempname, 'gm'), $.Remark);
-							}
-							
+
+                            //额外处理2，nickName不包含星号，但是确实是手机号
+                            var tempname = $.UserName;
+                            if (tempname.length == 13 && tempname.substring(8)) {
+                                tempname = tempname.substring(0, 3) + "[*][*][*][*][*]" + tempname.substring(8);
+                                //console.log("额外处理2:"+tempname);
+                                text = text.replace(new RegExp(tempname, 'gm'), $.Remark);
+                                desp = desp.replace(new RegExp(tempname, 'gm'), $.Remark);
+                            }
+
                         } catch (err) {
                             console.log("替换出错了");
                             console.log("Debug Name1 :" + $.UserName);
                             console.log("Debug Name2 :" + $.nickName);
                             console.log("Debug Remark :" + $.Remark);
                         }
-						
-						
-						
+
                         //console.log($.nickName+$.Remark);
 
                     }
@@ -1204,7 +1234,7 @@ async function sendNotify(text, desp, params = {}, author = '\n') {
 
     //提供6种通知
     if (strAuthor)
-        desp += '\n\n本通知 By ' + strAuthor + "\n通知时间: " + GetDateTime(new Date());
+        desp += '\n' + "\n通知时间: " + GetDateTime(new Date());
     else
         desp += author + "\n通知时间: " + GetDateTime(new Date());
 
@@ -1254,7 +1284,7 @@ async function sendNotify(text, desp, params = {}, author = '\n') {
             qywxamNotify(text, desp), //企业微信应用消息推送
             iGotNotify(text, desp, params), //iGot
             gobotNotify(text, desp), //go-cqhttp
-			gotifyNotify(text, desp),//gotify
+            gotifyNotify(text, desp), //gotify
             wxpusherNotify(text, desp) // wxpusher
         ]);
 }
@@ -1269,10 +1299,7 @@ async function sendNotifybyWxPucher(text, desp, PtPin, author = '\n') {
         if (process.env.NOTIFY_AUTHOR) {
             strAuthor = process.env.NOTIFY_AUTHOR;
         }
-        WP_APP_TOKEN_ONE = "";
-        if (process.env.WP_APP_TOKEN_ONE) {
-            WP_APP_TOKEN_ONE = process.env.WP_APP_TOKEN_ONE;
-        }
+
         if (process.env.WP_APP_ONE_TEXTSHOWREMARK) {
             llShowRemark = process.env.WP_APP_ONE_TEXTSHOWREMARK;
         }
@@ -1289,7 +1316,7 @@ async function sendNotifybyWxPucher(text, desp, PtPin, author = '\n') {
                 WP_UIDS_ONE = Uid;
                 console.log("正在发送一对一通知,请稍后...");
                 if (strAuthor)
-                    desp += '\n\n本通知 By ' + strAuthor;
+                    desp += '\n';
                 else
                     desp += author;
 
@@ -1378,40 +1405,40 @@ async function sendNotifybyWxPucher(text, desp, PtPin, author = '\n') {
 }
 
 function gotifyNotify(text, desp) {
-  return new Promise((resolve) => {
-    if (GOTIFY_URL && GOTIFY_TOKEN) {
-      const options = {
-        url: `${GOTIFY_URL}/message?token=${GOTIFY_TOKEN}`,
-        body: `title=${encodeURIComponent(text)}&message=${encodeURIComponent(desp)}&priority=${GOTIFY_PRIORITY}`,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+    return new Promise((resolve) => {
+        if (GOTIFY_URL && GOTIFY_TOKEN) {
+            const options = {
+                url: `${GOTIFY_URL}/message?token=${GOTIFY_TOKEN}`,
+                body: `title=${encodeURIComponent(text)}&message=${encodeURIComponent(desp)}&priority=${GOTIFY_PRIORITY}`,
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            };
+            $.post(options, (err, resp, data) => {
+                try {
+                    if (err) {
+                        console.log('gotify发送通知调用API失败！！\n');
+                        console.log(err);
+                    } else {
+                        data = JSON.parse(data);
+                        if (data.id) {
+                            console.log('gotify发送通知消息成功🎉\n');
+                        } else {
+                            console.log(`${data.message}\n`);
+                        }
+                    }
+                } catch (e) {
+                    $.logErr(e, resp);
+                }
+                finally {
+                    resolve();
+                }
+            });
+        } else {
+            resolve();
         }
-      };
-      $.post(options, (err, resp, data) => {
-        try {
-          if (err) {
-            console.log('gotify发送通知调用API失败！！\n');
-            console.log(err);
-          } else {
-            data = JSON.parse(data);
-            if (data.id) {
-              console.log('gotify发送通知消息成功🎉\n');
-            } else {
-              console.log(`${data.message}\n`);
-            }
-          }
-        } catch (e) {
-          $.logErr(e, resp);
-        } finally {
-          resolve();
-        }
-      });
-    } else {
-      resolve();
-    }
-  });
+    });
 }
-
 
 function gobotNotify(text, desp, time = 2100) {
     return new Promise((resolve) => {
