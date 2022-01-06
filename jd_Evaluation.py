@@ -1,0 +1,446 @@
+# !/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# @Time : 2021/11/25 13:58
+# 京东自动评价
+# https://github.com/klmmlk/Sth/blob/main/jd_Evaluation.py
+# 新增可选账号评价、更换图片、自动下载sendNotify
+'''
+new Env('京东自动评价');
+cron=0 20 8 ? * SAT  python3 jd_Evaluation.py
+'''
+import os
+import random
+import re
+import sys
+import time
+import requests
+from urllib.parse import unquote
+import jieba.analyse
+
+# 检查是否下载sendNotify.py
+if os.path.exists('sendNotify.py') == False:
+    pwd = os.path.dirname(os.path.abspath(__file__)) + os.sep
+    req = requests.get("https://ghproxy.com/https://raw.githubusercontent.com/gys619/jdd/main/sendNotify.py")
+    with open(pwd + 'sendNotify.py', "wb") as f:
+        f.write(req.content)
+from sendNotify import send
+
+
+# 需要评价的账号,输入 pt_pin 如：NeedEvaluation =  ['vdfd','qq345'] 注意是pt_pin;不填则默认全部评价
+NeedEvaluation = ['uszxw','jd_6129a3066c0b6']
+
+jieba.setLogLevel(jieba.logging.INFO)
+pwd = os.path.dirname(os.path.abspath(__file__)) + os.sep
+
+def printf(text):
+    print(text)
+    sys.stdout.flush()
+
+
+def getEnvs(label):
+    try:
+        if label == 'True' or label == 'yes' or label == 'true' or label == 'Yes':
+            return True
+        elif label == 'False' or label == 'no' or label == 'false' or label == 'No':
+            return False
+    except Exception as e:
+        pass
+    try:
+        if '.' in label:
+            return float(label)
+        elif '&' in label:
+            return label.split('&')
+        elif '@' in label:
+            return label.split('@')
+        else:
+            return int(label)
+    except:
+        return label
+
+
+class getJDCookie(object):
+    # 适配各种平台环境ck
+
+    def getckfile(self):
+        global v4f
+        curf = pwd + 'JDCookies.txt'
+        v4f = '/jd/config/config.sh'
+        ql_new = '/ql/config/env.sh'
+        ql_old = '/ql/config/cookie.sh'
+        if os.path.exists(curf):
+            with open(curf, "r", encoding="utf-8") as f:
+                cks = f.read()
+                f.close()
+            r = re.compile(r"pt_key=.*?pt_pin=.*?;", re.M | re.S | re.I)
+            cks = r.findall(cks)
+            if len(cks) > 0:
+                return curf
+            else:
+                pass
+        if os.path.exists(ql_new):
+            printf("当前环境青龙面板新版")
+            return ql_new
+        elif os.path.exists(ql_old):
+            printf("当前环境青龙面板旧版")
+            return ql_old
+        elif os.path.exists(v4f):
+            printf("当前环境V4")
+            return v4f
+        return curf
+
+    # 获取cookie
+    def getCookie(self):
+        global cookies
+        ckfile = self.getckfile()
+        try:
+            if os.path.exists(ckfile):
+                with open(ckfile, "r", encoding="utf-8") as f:
+                    cks = f.read()
+                    f.close()
+                if 'pt_key=' in cks and 'pt_pin=' in cks:
+                    r = re.compile(r"pt_key=.*?pt_pin=.*?;", re.M | re.S | re.I)
+                    cks = r.findall(cks)
+                    if len(cks) > 0:
+                        if 'JDCookies.txt' in ckfile:
+                            printf("当前获取使用 JDCookies.txt 的cookie")
+                        cookies = ''
+                        for i in cks:
+                            if 'pt_key=xxxx' in i:
+                                pass
+                            else:
+                                cookies += i
+                        return
+            else:
+                with open(pwd + 'JDCookies.txt', "w", encoding="utf-8") as f:
+                    cks = "#多账号换行，以下示例：（通过正则获取此文件的ck，理论上可以自定义名字标记ck，也可以随意摆放ck）\n账号1【Curtinlv】cookie1;\n账号2【TopStyle】cookie2;"
+                    f.write(cks)
+                    f.close()
+            if "JD_COOKIE" in os.environ:
+                if len(os.environ["JD_COOKIE"]) > 10:
+                    cookies = os.environ["JD_COOKIE"]
+                    printf("已获取并使用Env环境 Cookie")
+        except Exception as e:
+            printf(f"【getCookie Error】{e}")
+
+        # 检测cookie格式是否正确
+
+    def getUserInfo(self, ck, pinName, userNum):
+        url = 'https://me-api.jd.com/user_new/info/GetJDUserInfoUnion?orgFlag=JD_PinGou_New&callSource=mainorder&channel=4&isHomewhite=0&sceneval=2&sceneval=2&callback='
+        headers = {
+            'Cookie': ck,
+            'Accept': '*/*',
+            'Connection': 'close',
+            'Referer': 'https://home.m.jd.com/myJd/home.action',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Host': 'me-api.jd.com',
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.2 Mobile/15E148 Safari/604.1',
+            'Accept-Language': 'zh-cn'
+        }
+        try:
+            if sys.platform == 'ios':
+                resp = requests.get(url=url, verify=False, headers=headers, timeout=60).json()
+            else:
+                resp = requests.get(url=url, headers=headers, timeout=60).json()
+            if resp['retcode'] == "0":
+                nickname = resp['data']['userInfo']['baseInfo']['nickname']
+                return ck, nickname
+            else:
+                context = f"账号{userNum}【{pinName}】Cookie 已失效！请重新获取。"
+                printf(context)
+                return ck, False
+        except Exception:
+            context = f"账号{userNum}【{pinName}】Cookie 已失效！请重新获取。"
+            printf(context)
+            return ck, False
+
+    def iscookie(self):
+        """
+        :return: cookiesList,userNameList,pinNameList
+        """
+        cookiesList = []
+        userNameList = []
+        pinNameList = []
+        if 'pt_key=' in cookies and 'pt_pin=' in cookies:
+            r = re.compile(r"pt_key=.*?pt_pin=.*?;", re.M | re.S | re.I)
+            result = r.findall(cookies)
+            if len(result) >= 1:
+                printf("您已配置{}个账号".format(len(result)))
+                u = 1
+                for i in result:
+                    r = re.compile(r"pt_pin=(.*?);")
+                    pinName = r.findall(i)
+                    pinName = unquote(pinName[0])
+                    # 获取账号名
+                    ck, nickname = self.getUserInfo(i, pinName, u)
+                    if nickname:
+                        cookiesList.append(ck)
+                        userNameList.append(nickname)
+                        pinNameList.append(pinName)
+                    else:
+                        u += 1
+                        continue
+                    u += 1
+                if len(cookiesList) > 0 and len(userNameList) > 0:
+                    return cookiesList, userNameList, pinNameList
+                else:
+                    printf("没有可用Cookie，已退出")
+                    exit(3)
+            else:
+                printf("cookie 格式错误！...本次操作已退出")
+                exit(4)
+        else:
+            printf("cookie 格式错误！...本次操作已退出")
+            exit(4)
+
+
+getCk = getJDCookie()
+getCk.getCookie()
+# 获取v4环境 特殊处理
+if os.path.exists(v4f):
+    try:
+        with open(v4f, 'r', encoding='utf-8') as f:
+            curenv = locals()
+            for i in f.readlines():
+                r = re.compile(r'^export\s(.*?)=[\'\"]?([\w\.\-@#!&=_,\[\]\{\}\(\)]{1,})+[\'\"]{0,1}$', re.M | re.S | re.I)
+                r = r.findall(i)
+                if len(r) > 0:
+                    for i in r:
+                        if i[0] != 'JD_COOKIE':
+                            curenv[i[0]] = getEnvs(i[1])
+    except:
+        pass
+
+if "qjd_zlzh" in os.environ:
+    if len(os.environ["qjd_zlzh"]) > 1:
+        qjd_zlzh = os.environ["qjd_zlzh"]
+        qjd_zlzh = qjd_zlzh.replace('[', '').replace(']', '').replace('\'', '').replace(' ', '').split(',')
+        #printf("已获取并使用Env环境 qjd_zlzh:", qjd_zlzh)
+
+
+# 评价生成
+def generation(pname, _class=0, _type=1):
+    # 0是追评 1是评价
+    # class 0是评价 1是提取id
+    try:
+        name = jieba.analyse.textrank(pname, topK=5, allowPOS='n')[0]
+    except:
+        name = "宝贝"
+    if _class == 1:
+        return name
+    else:
+        datas = {
+            1: {
+                "开始": [
+                    "买之前也不知道商品质量和品质怎么样，但是看了评论后我就放心了，",
+                    "买之前看过好几家店，最后看到这家店的评价不错就决定在这家店买，",
+                    "看了好几家店，也对比了好几家店，最后发现还是这一家的评价最好，",
+                    "看来看去最后还是选择了这家，",
+                    "之前在这家店也买过其他东西，感觉不错，这次又来啦，",
+                    "东挑西选，还是这家的好用，评价不错，质量很好，"
+                ],
+                "中间": [
+                    "收到货后非常的开心，质量和品质真的非常好，",
+                    "收到货拆开包装后果然没让我失望，",
+                    "快递超快，包装很好，很喜欢，",
+                    "发货及时，包装完好，商品的质量和品质非常不错，",
+                    "商品真心不错的，物超所值，",
+                    "与卖家描述的一致，发货及时，包装仔细、严实，"
+                ],
+                "结束": [
+                    "如果下次还要买的话，一定会再来这家店买。",
+                    "不错不错，好评推荐。",
+                    "回头推荐给身边的朋友。",
+                    "真是一次愉快的购物。",
+                    "大大的好评，以后有需要再来下单。",
+                    "很满意的一次购物，下次还来，祝老板生意兴隆。"
+                ]
+            },
+            0: {
+                "开始": [
+                    "东西好用，",
+                    "使用了几天，",
+                    "物超所值，",
+                    "非常满意，",
+                    "质量不错，",
+                    "真是太好用了，"
+                ],
+                "中间": [
+                    "非常满意，",
+                    "确实不错，推荐购买，",
+                    "质量也不错，",
+                    "好用，值得信赖",
+                    "值得信赖，",
+                    "五星好评！"
+                ],
+                "结束": [
+                    "有需要的可以试试。",
+                    "好评！",
+                    "赞！",
+                    "下次还来这家店买。",
+                    "东西很好。",
+                    "很满意的一次购物。"
+                ]
+            }
+        }
+        if _type == 1:
+            comments = datas[_type]
+            return 5, (
+                    random.choice(comments["开始"]) + random.choice(comments["中间"]) + random.choice(comments["结束"])).replace("$", name)
+        elif _type == 0:
+            comments = datas[_type]
+            return (
+                    random.choice(comments["开始"]) + random.choice(comments["中间"]) + random.choice(comments["结束"])).replace("$", name)
+
+
+def start():
+    Cent = {}
+    def op(headers,_type=True):
+        Ci = []
+        url = 'https://wq.jd.com/bases/orderlist/list?order_type=8&start_page=1&page_size=100'
+        if not _type:
+            url = 'https://wq.jd.com/bases/orderlist/list?order_type=6&start_page=1&page_size=10'
+        he = headers
+        he['referer'] = 'https://wqs.jd.com/order/orderlist_merge.shtml?jxsid=16355625882984298965&orderType=all&ptag=7155.1.11'
+        # try:
+        if True:
+            req = requests.get(url, headers=he)
+            data = req.json()
+            for i, da in enumerate(data['orderList']):
+                oid = da['orderId']
+                pid = da['productList'][0]['skuId']
+                name = da['productList'][0]['title']
+                cname = None
+                multi = False if len(da['productList']) == 1 else True
+                for j in da['buttonList']:
+                    if j['id'] == 'toComment':
+                        cname = j['name']  # 评价按钮名字
+                if cname is None:
+                    #printf("没获得到按钮数据，跳过这个商品！")
+                    continue
+
+                Ci.append({'name': name, 'oid': oid, 'pid': pid, 'cname': cname, 'multi': multi})
+        # except:
+        #     printf('获取评价出错，可能ck失效')
+        #     exit()
+        return Ci
+
+    # 评价和服务评价
+    def ordinary(headers, ce):
+        url = "https://wq.jd.com/eval/SendEval?g_login_type=0&g_ty=ajax"
+        for i, da in enumerate(op(headers)):
+            se_url = f'https://wq.jd.com/eval/SendDSR'
+            se_data = {
+                'userclient': '29',
+                'orderId': da["oid"],
+                'otype': 5,
+                'DSR1': 5,
+                'DSR2': 5,
+                'DSR3': 5,
+                'DSR4': 5,
+                'g_login_type': '0',
+                'g_ty': 'ls'
+            }
+            xing, context = generation(da['name'])
+            data = {
+                'productId': da['pid'],
+                'orderId': da['oid'],
+                'score': xing,
+                'content': context,
+                'commentTagStr': 1,
+                'userclient': 29,
+                'scence': 101100000
+            }
+            he = headers
+
+            def pjsj():
+                req = requests.post(url, headers=he, data=data)
+                if req.json()['errMsg'] == 'success':
+                    #printf("\t普通评价成功！！")
+                    Cent[ce]['评价'] += 1
+                else:
+                    printf("\t普通评价失败了.......")
+                    printf(data)
+
+            def pjfw():
+                se_req = requests.get(se_url, headers=he, params=se_data)
+                if se_req.json()['errMsg'] == 'success':
+                    #printf("\t服务评价成功！！")
+                    Cent[ce]['服务评价'] += 1
+                else:
+                    printf("\t服务评价失败了.......")
+                    printf(se_data)
+
+            printf(f'开始评论{i}\t[{da["oid"]}')
+
+            if da['cname'] == "评价晒单":
+                pjsj()
+                pjfw()
+            elif da['cname'] == '评价服务':
+                pjfw()
+            elif da['cname'] == '追加评价':
+                pass
+            else:
+                printf(da['cname'])
+            #printf('等待5秒-可持续发展！')
+            time.sleep(5)
+
+    # 晒单
+    def sunbw(headers,ce):
+        url = "https://wq.jd.com/eval/SendEval?g_login_type=0&g_ty=ajax"
+        for i, da in enumerate(op(headers,_type=False)):
+            if da['cname'] == "追加评价":
+                context = generation(da['name'], _type=0)
+                printf(f'开始晒单{i},{da["oid"]}')
+                if da['multi']:
+                    #printf('\t多个商品跳过！')
+                    continue
+                url = 'https://comment-api.jd.com/comment/appendComment?sceneval=2&g_login_type=1&g_ty=ajax'
+                data = {
+                    'productId': da['pid'],
+                    'orderId': da['oid'],
+                    'content': context,
+                    'userclient': 29,
+                    'imageJson': random.sample(
+                        ['//img10.360buyimg.com/shaidan/s645x515_jfs/t…5601/29741/619f3006Ed48af8cd/e78dc083a1293bdd.jpg', '//img13.360buyimg.com/shaidan/s645x515_jfs/t…5695/69929/619f3007E7a54e586/00a465072aed1485.jpg',
+                        '//img30.360buyimg.com/shaidan/s645x515_jfs/t…1610/83098/619f3007Ee47b830d/978776a0b978eaa9.jpg',
+                        '//img10.360buyimg.com/shaidan/s645x515_jfs/t…7037/54889/619f3007Eefa89588/c2393bbbda622cc5.jpg',
+                        '//img13.360buyimg.com/shaidan/s645x515_jfs/t…1163/40064/619f3007Ea141143d/73250aa354de7786.jpg',
+                        '//img10.360buyimg.com/shaidan/s645x515_jfs/t…1400/65152/619f3008E7f518459/2390d27ee9a3fb61.jpg'], 1)
+                }
+                req = requests.post(url, headers=headers, data=data)
+                if req.json()['data']['result'] != {}:
+                    #printf("\t晒单成功！！！")
+                    Cent[ce]['晒单'] += 1
+                else:
+                    printf("\t晒单失败...")
+                    printf(req.json())
+                #printf('等待5秒-可持续发展！')
+                time.sleep(5)
+
+    printf('### 开始批量评价 ###')
+    global cookiesList, userNameList, pinNameList, ckNum, beanCount, userCount
+    cookiesList, userNameList, pinNameList = getCk.iscookie()
+
+    for i,ck,user,pin in zip(range(1,len(cookiesList)+1),cookiesList,userNameList,pinNameList):
+        if pin in NeedEvaluation or len(NeedEvaluation) == 0:
+            printf(f"** 开始[账号{i}]-{user} **")
+            headers = {
+                'cookie': ck,
+                'user-agent': 'jdltapp;android;1.0.0;9;860105045422157-bce2658d9db5;network/wifi;model/JKM-AL00a;addressid/0;aid/5d84f5872ec4e5c8;oaid/51fe75e7-7e5d-aefc-fbed-ffffdf7f6bd2;osVer/28;appBuild/694;psn/860105045422157-bce2658d9db5|3;psq/26;uid/860105045422157-bce2658d9db5;adk/;ads/;pap/JA2020_3112531|1.0.0|ANDROID',
+            }
+            Cent[f'账号{i}[{user}]'] = {'评价':0 , '晒单':0, '服务评价':0}
+            printf('开始评价与服务评价！')
+            ordinary(headers, f'账号{i}[{user}]')
+            printf('开始晒单！')
+            sunbw(headers, f'账号{i}[{user}]')
+            printf('完成！！。等待10秒')
+            time.sleep(10)
+    msg = ''
+    for i in Cent:
+        msg += f'{i}\n{Cent[i]}\n\n'
+    send('京东全自动评价',msg)
+
+
+
+if __name__ == '__main__':
+    start()
