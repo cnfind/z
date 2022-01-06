@@ -1,7 +1,7 @@
 /*
 注销京东会员卡
 查看已开店铺会员入口:我的=>我的钱包=>卡包
-cron 13 13 * * * jd_unbind.js
+cron 13 13 1 * * jd_unbind.js
  */
 const $ = new Env('注销京东会员卡');
 //Node.js用户请在jdCookie.js处填写京东ck;
@@ -19,7 +19,7 @@ if ($.isNode()) {
   cookiesArr = [$.getdata('CookieJD'), $.getdata('CookieJD2'), ...jsonParse($.getdata('CookiesJD') || "[]").map(item => item.cookie)].filter(item => !!item);
 }
 const jdNotify = $.getdata('jdUnbindCardNotify');//是否关闭通知，false打开通知推送，true关闭通知推送
-let cardPageSize = 20;// 运行一次取消多少个会员卡。数字0表示不注销任何会员卡
+let cardPageSize = 10;// 运行一次取消多少个会员卡。数字0表示不注销任何会员卡
 let stopCards = `京东PLUS会员&宝洁&蓝月亮&美的会员&京东大药房&伊利牛奶&京东&超级米粉卡&博朗&维达&苏菲&飞利浦&格力&蒙牛&阿迪达斯&adiCLUB`;//遇到此会员卡跳过注销,多个使用&分开
 const JD_API_HOST = 'https://api.m.jd.com/';
 !(async () => {
