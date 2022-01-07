@@ -124,9 +124,7 @@ let notify, allMessage = '';
         helpIndex++
     }
 
-    allMessage += "上述就是本次的幸运锦鲤啦~ 自动开红包流程没出错的话，红包应该已经领到了~不过也可以手动前往 京东app/领券/锦鲤红包 去确认~\n"
-
-    allMessage += "（请以今日0点后第一次运行的消息为准。后续运行只是为了保底，避免第一次因各种未知异常而未完成运行）"
+    allMessage += "运行完成，可以手动前往：京东app/领券/锦鲤红包确认"
 
     // 发送通知
     if ($.isNode() && allMessage) {
@@ -286,7 +284,7 @@ async function appendRewardInfoToNotify(cookieIndex, cookie) {
             headmanNickName = info.redpacketInfo.headmanNickName
             packetTotalSum = info.redpacketInfo.packetTotalSum
         }
-        allMessage += `【京东账号${cookieIndex + 1}】 ${headmanNickName} 已获取红包 ${packetTotalSum} 元，剩余可拆红包为 ${calcCanTakeRedpacketCount(info)} 个（如开红包流程顺利，这里应该永远是0）\n`
+        allMessage += `【京东账号${cookieIndex + 1}】 ${headmanNickName} 已获取红包 ${packetTotalSum} 元，剩余可拆红包为 ${calcCanTakeRedpacketCount(info)} 个\n`
 
         let totalAssistNum = 0
         let totalRequireAssistNum = 0
