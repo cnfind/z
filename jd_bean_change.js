@@ -58,6 +58,7 @@ let DisableCash = "false";
 let llShowMonth = false;
 let Today = new Date();
 let strAllNotify="";
+let strSubNotify="";
 let llPetError=false;
 let strGuoqi="";
 let RemainMessage = '\n';
@@ -129,20 +130,20 @@ if ($.isNode() && process.env.BEANCHANGE_DISABLECASH) {
 	//EnableMonth = process.env.BEANCHANGE_ENABLEMONTH;
 //}
 
-if ($.isNode() && process.env.BEANCHANGE_ALLNOTIFY) {
-	
-/* 	var strTempNotify=process.env.BEANCHANGE_ALLNOTIFY ? process.env.BEANCHANGE_ALLNOTIFY.split('&') : [];
-	if (strTempNotify.length > 0) {
-		for (var TempNotifyl in strTempNotify) {					
-			strAllNotify+=strTempNotify[TempNotifyl]+'\n';
-		}
-	} */
+if ($.isNode() && process.env.BEANCHANGE_ALLNOTIFY) {	
 	strAllNotify=process.env.BEANCHANGE_ALLNOTIFY;
 	console.log(`检测到设定了公告,将在推送信息中置顶显示...`);
 	strAllNotify = `【✨✨公告✨✨】\n`+strAllNotify;
-	console.log(strAllNotify);
+	console.log(strAllNotify+"\n");
 	strAllNotify +=`\n🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏`
 }
+
+if ($.isNode() && process.env.BEANCHANGE_SUBNOTIFY) {	
+	strSubNotify=process.env.BEANCHANGE_SUBNOTIFY;
+	strSubNotify+="\n";
+	console.log(`检测到预览置顶内容,将在一对一推送的预览显示...\n`);	
+}
+
 
 if (EnableMonth == "true" && Today.getDate() == 1 && Today.getHours() > 17)
 	llShowMonth = true;
@@ -295,46 +296,46 @@ if ($.isNode()) {
 	}
 	//组1通知
 	if (ReceiveMessageGp4) {
-		allMessage2Gp4 = `【⏰商品白嫖活动领取提醒⏰】\n` + ReceiveMessageGp4;
+		allMessage2Gp4 = `【⏰白嫖活动领取提醒⏰】\n` + ReceiveMessageGp4;
 	}
 	if (WarnMessageGp4) {
 		if (allMessage2Gp4) {
 			allMessage2Gp4 = `\n` + allMessage2Gp4;
 		}
-		allMessage2Gp4 = `【⏰商品白嫖活动任务提醒⏰】\n` + WarnMessageGp4 + allMessage2Gp4;
+		allMessage2Gp4 = `【⏰白嫖活动任务提醒⏰】\n` + WarnMessageGp4 + allMessage2Gp4;
 	}
 
 	//组2通知
 	if (ReceiveMessageGp2) {
-		allMessage2Gp2 = `【⏰商品白嫖活动领取提醒⏰】\n` + ReceiveMessageGp2;
+		allMessage2Gp2 = `【⏰白嫖活动领取提醒⏰】\n` + ReceiveMessageGp2;
 	}
 	if (WarnMessageGp2) {
 		if (allMessage2Gp2) {
 			allMessage2Gp2 = `\n` + allMessage2Gp2;
 		}
-		allMessage2Gp2 = `【⏰商品白嫖活动任务提醒⏰】\n` + WarnMessageGp2 + allMessage2Gp2;
+		allMessage2Gp2 = `【⏰白嫖活动任务提醒⏰】\n` + WarnMessageGp2 + allMessage2Gp2;
 	}
 
 	//组3通知
 	if (ReceiveMessageGp3) {
-		allMessage2Gp3 = `【⏰商品白嫖活动领取提醒⏰】\n` + ReceiveMessageGp3;
+		allMessage2Gp3 = `【⏰白嫖活动领取提醒⏰】\n` + ReceiveMessageGp3;
 	}
 	if (WarnMessageGp3) {
 		if (allMessage2Gp3) {
 			allMessage2Gp3 = `\n` + allMessage2Gp3;
 		}
-		allMessage2Gp3 = `【⏰商品白嫖活动任务提醒⏰】\n` + WarnMessageGp3 + allMessage2Gp3;
+		allMessage2Gp3 = `【⏰白嫖活动任务提醒⏰】\n` + WarnMessageGp3 + allMessage2Gp3;
 	}
 
 	//其他通知
 	if (allReceiveMessage) {
-		allMessage2 = `【⏰商品白嫖活动领取提醒⏰】\n` + allReceiveMessage;
+		allMessage2 = `【⏰白嫖活动领取提醒⏰】\n` + allReceiveMessage;
 	}
 	if (allWarnMessage) {
 		if (allMessage2) {
 			allMessage2 = `\n` + allMessage2;
 		}
-		allMessage2 = `【⏰商品白嫖活动任务提醒⏰】\n` + allWarnMessage + allMessage2;
+		allMessage2 = `【⏰白嫖活动任务提醒⏰】\n` + allWarnMessage + allMessage2;
 	}
 
 	if (intPerSent > 0) {
@@ -463,7 +464,7 @@ async function showMsg() {
 	//return
 	ReturnMessageTitle="";
 	ReturnMessage = "";
-	var strsummary="";
+	var strsummary=strSubNotify;
 	if (MessageUserGp2) {
 		userIndex2 = MessageUserGp2.findIndex((item) => item === $.pt_pin);
 	}
@@ -590,7 +591,7 @@ async function showMsg() {
 		}
 		ReturnMessage += `\n`;		
 		ReturnMessage += `【当前喜豆】${$.xibeanCount}喜豆(≈${($.xibeanCount/ 100).toFixed(2)}元)\n`;
-		strsummary += `【当前喜豆】${$.xibeanCount}喜豆(≈${($.xibeanCount/ 100).toFixed(2)}元)\n`;
+		strsummary += `【当前喜豆】${$.xibeanCount}豆(≈${($.xibeanCount/ 100).toFixed(2)}元)\n`;
 	}
 
 
@@ -817,7 +818,7 @@ async function showMsg() {
 		
 		if (TempBaipiao) {
 			strsummary=TempBaipiao +strsummary;			
-			TempBaipiao = `【⏰商品白嫖活动提醒⏰】\n` + TempBaipiao;
+			TempBaipiao = `【⏰白嫖活动提醒⏰】\n` + TempBaipiao;
 			ReturnMessage = TempBaipiao + `\n` + ReturnMessage;			
 		}
 		
@@ -1469,8 +1470,8 @@ function getMs() {
 					console.log(`getMs API请求失败，请检查网路重试`)
 				} else {
 					if (safeGet(data)) {
-						data = JSON.parse(data)
-							if (data.code === 2041 || data.code === 2042) {
+						data = JSON.parse(data);						
+							if (data.result.assignment.assignmentPoints) {
 								$.JdMsScore = data.result.assignment.assignmentPoints || 0
 							}
 					}
