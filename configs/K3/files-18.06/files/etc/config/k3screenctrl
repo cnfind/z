@@ -1,0 +1,9 @@
+
+config general
+	option screen_time '30'
+	option refresh_time '10'
+	option update_time '0'
+	option city_checkip '0'
+	option city 'Chengdu'
+	option pawd_hide '1'
+	option psk_hide '1'

@@ -1,0 +1,2 @@
+
+5 6 * * 6 sleep 5 && touch /etc/banner && reboot
